@@ -1,168 +1,147 @@
-# PDF Merger 📄✨
+# PDF Merger Pro
 
-A powerful and user-friendly command-line tool for merging PDF files with style! Perfect for combining course materials, documents, or any collection of PDFs.
+**CLI tool that merges PDF files from a folder into a single document with progress tracking and flexible output options.**
 
-## 🚀 Features
+![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
+![pypdf](https://img.shields.io/badge/pypdf-4.x-3776AB?logo=adobe-acrobat-reader)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-- **🎯 Smart Merging**: Automatically finds and merges PDF files from any folder
-- **📁 Recursive Search**: Scan subfolders with the `--recursive` flag
-- **🎨 Beautiful CLI**: Progress bars, emojis, and color-coded messages
-- **⚡ Fast Processing**: Efficient PDF handling with modern libraries
-- **🔧 Flexible Options**: Custom output names and destination folders
-- **📊 Detailed Stats**: File count, page count, and size information
-- **🛡️ Error Handling**: Robust error handling and user-friendly messages
+## Overview
 
-## 📦 Installation
+PDF Merger Pro is a command-line application that discovers PDF files in a specified folder (optionally recursively), sorts them alphabetically, and merges them into a single output file. It provides progress bars, color-coded console output, and robust error handling for corrupted or inaccessible files.
 
-1. **Clone the repository:**
+**Use case:** Combine course materials, scanned documents, or any collection of PDFs into one file without manual reordering.
 
-   ```bash
-   git clone git@github.com:ErikKopcha/pdf-merger.git
-   cd pdf-merger
-   ```
+**Status:** Production-ready. Supports pypdf (primary) and PyPDF2 (fallback). Partial merge on per-file errors with explicit user feedback.
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Tech Stack
 
-## 🎮 Usage
+| Layer      | Technology                    |
+| ---------- | ----------------------------- |
+| Language   | Python 3.8+                   |
+| PDF Engine | pypdf ≥ 4.0 (PyPDF2 fallback) |
+| CLI        | argparse, tqdm                |
+| Formatting | black, isort                  |
 
-### Basic Usage
+## Architecture
 
-```bash
-python main.py /path/to/folder
-
-# or run as a module
-python -m cli.app /path/to/folder
+```
+main.py → cli.app → MergeOrchestrator → PdfScanner / PdfMergerService
 ```
 
-### Advanced Usage
+The CLI parses arguments, builds `MergeSettings`, and delegates to `MergeOrchestrator`, which coordinates scanning, output path resolution, and merging. Core services (`PdfScanner`, `PdfMergerService`) are injected for testability and reuse.
 
-```bash
-# Merge PDFs with custom output name
-python main.py /path/to/folder --output "My_Merged_Document"
+### Execution Flow
 
-# Recursive search in subfolders
-python main.py /path/to/folder --recursive
-
-# Custom destination folder
-python main.py /path/to/folder --destination /path/to/output
-
-# Combine all options
-python main.py /path/to/folder --output "Complete_Course" --recursive --destination ~/Documents
+```mermaid
+flowchart LR
+    CLI["CLI (argparse)"] --> App["PdfMergerApp"]
+    App --> Orch["MergeOrchestrator"]
+    Orch --> Scan["PdfScanner"]
+    Orch --> Merge["PdfMergerService"]
+    Scan --> Merge
+    Merge --> Outcome["MergeOutcome"]
 ```
 
-### Command Line Arguments
-
-| Argument        | Description                    | Example                     |
-| --------------- | ------------------------------ | --------------------------- |
-| `folder_path`   | Path to folder containing PDFs | `/Users/john/Documents`     |
-| `--output`      | Custom name for output PDF     | `--output "My_Document"`    |
-| `--recursive`   | Search in subfolders           | `--recursive`               |
-| `--destination` | Output folder path             | `--destination ~/Downloads` |
-| `--help`        | Show help message              | `--help`                    |
-
-## 📋 Examples
-
-### Example 1: Merge Course Materials
-
-```bash
-python main.py "Python Course" --output "Python_Complete" --recursive
-```
-
-**Result:** All PDFs from "Python Course" folder and subfolders merged into "Python_Complete.pdf"
-
-### Example 2: Merge Single Folder
-
-```bash
-python main.py "Topic 1"
-```
-
-**Result:** All PDFs from "Topic 1" folder merged into "Topic 1.pdf"
-
-### Example 3: Custom Destination
-
-```bash
-python main.py "Documents" --destination ~/Desktop --output "All_Docs"
-```
-
-**Result:** Merged PDF saved as "All_Docs.pdf" on Desktop
-
-## 🔧 Requirements
-
-- Python 3.7+
-- pypdf >= 4.0.0
-- tqdm >= 4.65.0
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 pdf-merger/
-├── main.py          # Thin CLI entry point
-├── cli/              # CLI wiring (parser + app)
-├── core/             # Domain services (scanner, merger, orchestrator)
-├── config/           # Constants + dataclasses
-├── utils/            # Console + filesystem helpers
-├── requirements.txt
-└── README.md
+├── main.py              # Entry point; invokes cli.app.main()
+├── cli/
+│   ├── app.py           # PdfMergerApp — wiring, error handling, output
+│   └── parser.py        # argparse setup (folder_path, --output, --recursive, --destination)
+├── core/
+│   ├── orchestrator.py  # MergeOrchestrator — folder validation, scan, merge flow
+│   ├── scanner.py       # PdfScanner — discovers PDFs via glob
+│   └── merger.py        # PdfMergerService — combines PDFs, returns MergeOutcome
+├── config/
+│   ├── settings.py      # MergeSettings dataclass
+│   └── constants.py     # PDF_EXTENSION, MAX_PREVIEW_FILES, etc.
+├── utils/
+│   ├── console.py       # ConsoleMessenger — ANSI colors, formatted output
+│   ├── colors.py        # ColorPalette
+│   └── file_utils.py    # sanitize_filename, ensure_unique_output, limit_preview
+├── pyproject.toml       # black, isort config
+└── requirements.txt
 ```
 
-> Потрібні інтеграції? Просто імпортуй `core.orchestrator.MergeOrchestrator` або окремі сервіси, не запускаючи subprocess-CLI.
+## Getting Started
 
-## 🎨 Features in Detail
+### Prerequisites
 
-### Smart File Sorting
+- **Python** ≥ 3.8
+- **pip** (or uv / poetry)
 
-- Automatically sorts files alphabetically
-- Prioritizes "Introduction" and "Conclusion" files
-- Handles Ukrainian and English file names
+### Installation
 
-### Progress Tracking
+```bash
+git clone https://github.com/ErikKopcha/pdf-merger.git
+cd pdf-merger
+pip install -r requirements.txt
+```
 
-- Real-time progress bars during merging
-- File-by-file processing updates
-- Final statistics summary
+### Running the App
 
-### Error Handling
+```bash
+# Basic: merge all PDFs in a folder
+python3 main.py /path/to/folder
 
-- Graceful handling of corrupted PDFs
-- Clear error messages
-- Continues processing even if some files fail
+# Custom output name
+python3 main.py /path/to/folder --output "My Merged Document"
 
-### Output Information
+# Recursive search in subfolders
+python3 main.py /path/to/folder --recursive
 
-- 📄 Total files processed
-- 📖 Total pages in merged PDF
-- 💾 Final file size
-- ✅ Success confirmation
+# Custom destination folder
+python3 main.py /path/to/folder --destination ~/Documents --output "Combined"
+```
 
-## 🤝 Contributing
+## Available Scripts
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+| Command                                | Description            |
+| -------------------------------------- | ---------------------- |
+| `python3 main.py <folder_path>`        | Merge PDFs from folder |
+| `python3 main.py <folder_path> --help` | Show CLI help          |
+| `black .`                              | Format code (black)    |
+| `isort .`                              | Sort imports (isort)   |
 
-## 📝 License
+## Key Features
 
-This project is open source and available under the [MIT License](LICENSE).
+- **Smart discovery:** Glob `*.pdf` or `**/*.pdf` (recursive)
+- **Alphabetical order:** Files sorted by name before merge
+- **Unique output:** Timestamp suffix when output file exists
+- **Partial merge:** Skips failed files, reports them explicitly
+- **Progress:** tqdm progress bar or fallback per-file messages
+- **Validation:** Rejects non-directory source, file-as-destination
 
-## 🐛 Issues & Support
+## Integration
 
-If you encounter any issues or have questions:
+Use as a library without running the CLI:
 
-1. Check the [Issues](https://github.com/ErikKopcha/pdf-merger/issues) page
-2. Create a new issue with detailed description
-3. Include error messages and system information
+```python
+from pathlib import Path
 
-## 🌟 Acknowledgments
+from config.settings import MergeSettings
+from core.merger import PdfMergerService
+from core.orchestrator import MergeOrchestrator
+from core.scanner import PdfScanner
+from utils.console import ConsoleMessenger
 
-- Built with ❤️ for efficient PDF management
-- Powered by [pypdf](https://github.com/py-pdf/pypdf) library
-- CLI enhanced with [tqdm](https://github.com/tqdm/tqdm) progress bars
+settings = MergeSettings(
+    folder_path=Path("/path/to/pdfs"),
+    recursive=True,
+    output_name="merged",
+    destination=None,
+)
+orchestrator = MergeOrchestrator(
+    scanner=PdfScanner(),
+    merger=PdfMergerService(progress_callback=None, error_callback=None),
+    messenger=ConsoleMessenger(),
+)
+outcome = orchestrator.execute(settings)
+```
 
----
+## License
 
-**Happy PDF Merging! 🎉**
+[MIT](LICENSE) © Erik Kopcha
