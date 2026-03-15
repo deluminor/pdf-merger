@@ -8,7 +8,7 @@
 
 ## Overview
 
-PDF Merger Pro is a command-line application that discovers PDF files in a specified folder (optionally recursively), sorts them alphabetically, and merges them into a single output file. It provides progress bars, color-coded console output, and robust error handling for corrupted or inaccessible files.
+PDF Merger is a command-line application that discovers PDF files in a specified folder (optionally recursively), sorts them alphabetically, and merges them into a single output file. It provides progress bars, color-coded console output, and robust error handling for corrupted or inaccessible files.
 
 **Use case:** Combine course materials, scanned documents, or any collection of PDFs into one file without manual reordering.
 
