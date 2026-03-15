@@ -1,4 +1,4 @@
-# PDF Merger Pro
+# PDF Merger
 
 **CLI tool that merges PDF files from a folder into a single document with progress tracking and flexible output options.**
 
