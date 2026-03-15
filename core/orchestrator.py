@@ -1,5 +1,3 @@
-"""Coordinates the high-level merge flow."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -85,6 +83,10 @@ class MergeOrchestrator:
 
     def _resolve_destination(self, destination: Optional[Path], fallback: Path) -> Path:
         target = destination or fallback
+        if target.exists() and not target.is_dir():
+            raise FileExistsError(
+                f"Destination path exists and is not a directory: {target}"
+            )
         target.mkdir(parents=True, exist_ok=True)
 
         return target

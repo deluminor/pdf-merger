@@ -1,5 +1,3 @@
-"""CLI application entry point."""
-
 from __future__ import annotations
 
 import sys
@@ -25,31 +23,36 @@ class PdfMergerApp:
         parser = build_parser()
         args = parser.parse_args(argv)
 
-        print(
-            self.messenger.banner(
-                """
+        print(self.messenger.banner("""
 ╔══════════════════════════════════════════════════════════════╗
 ║                    🚀 PDF Merger Pro 🚀                     ║
 ║              Advanced PDF Merging Tool v2.0                 ║
 ║                                                            ║
 ║  Merge PDFs like a pro with style and efficiency!           ║
 ╚══════════════════════════════════════════════════════════════╝
-""".rstrip()
-            )
-        )
+""".rstrip()))
 
         settings = self._build_settings(
             args.folder_path, args.recursive, args.output, args.destination
         )
+
+        def on_progress(msg: str) -> None:
+            formatted = self.messenger.info(msg) if msg.startswith("Saving") else msg
+            print(formatted)
+
+        merger = PdfMergerService(
+            progress_callback=on_progress,
+            error_callback=lambda msg: print(self.messenger.error(msg)),
+        )
         orchestrator = MergeOrchestrator(
             scanner=PdfScanner(),
-            merger=PdfMergerService(self.messenger),
+            merger=merger,
             messenger=self.messenger,
         )
 
         try:
             outcome = orchestrator.execute(settings)
-        except (FileNotFoundError, NotADirectoryError) as exc:
+        except (FileNotFoundError, NotADirectoryError, FileExistsError) as exc:
             print(self.messenger.error(str(exc)))
             return 1
         except RuntimeError as exc:
@@ -64,6 +67,14 @@ class PdfMergerApp:
 
         if outcome is None:
             return 0
+
+        if outcome.skipped:
+            print(
+                self.messenger.warning(
+                    f"Partial merge: {len(outcome.skipped)} file(s) skipped due to errors: "
+                    f"{', '.join(p.name for p in outcome.skipped)}"
+                )
+            )
 
         print(
             self.messenger.success(f"Successfully created: {outcome.output_path.name}")
@@ -88,9 +99,9 @@ class PdfMergerApp:
             folder_path=Path(folder_path).expanduser().resolve(),
             recursive=recursive,
             output_name=output,
-            destination=Path(destination).expanduser().resolve()
-            if destination
-            else None,
+            destination=(
+                Path(destination).expanduser().resolve() if destination else None
+            ),
         )
 
 

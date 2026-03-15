@@ -1,5 +1,3 @@
-"""Terminal color codes used across the CLI."""
-
 from dataclasses import dataclass
 
 

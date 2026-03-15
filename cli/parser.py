@@ -1,5 +1,3 @@
-"""CLI argument parser."""
-
 from __future__ import annotations
 
 import argparse
@@ -10,15 +8,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="🚀 PDF Merger Pro - Merge PDF files from a folder",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=dedent(
-            """
+        epilog=dedent("""
             Examples:
               python3 main.py /path/to/folder
               python3 main.py /path/to/folder --output "My Merged Document"
               python3 main.py /path/to/folder -o "Custom Name" --recursive
               python3 main.py . --output "Current Folder PDFs"
-            """
-        ),
+            """),
     )
 
     parser.add_argument("folder_path", help="Path to the folder containing PDF files")

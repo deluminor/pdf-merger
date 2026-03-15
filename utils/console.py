@@ -1,5 +1,3 @@
-"""Utilities for consistent console output."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
