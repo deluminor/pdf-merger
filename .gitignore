@@ -1,0 +1,18 @@
+# Runtime artifacts
+.sessions/
+tmp_fixtures/
+sessions/
+
+# Local environments and JavaScript builds
+venv/
+.venv/
+node_modules/
+dist/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# OS metadata
+.DS_Store
+web/.npm-cache/
