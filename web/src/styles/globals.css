@@ -1,0 +1,109 @@
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #faf7f2;
+  --surface: #fffdfa;
+  --surface-sunken: #f4efe7;
+  --surface-raised: #ffffff;
+  --hairline: #e9e2d7;
+  --hairline-strong: #dad0c1;
+  --ink: #1c1917;
+  --ink-secondary: #57534e;
+  --ink-muted: #8a8178;
+  --ink-faint: #b8aea2;
+
+  --accent: #e0532f;
+  --accent-hover: #c7492b;
+  --accent-active: #ae3f24;
+  --accent-soft: #fbeae3;
+  --accent-ring: #f2b7a2;
+
+  --success: #3f6b4c;
+  --success-soft: #e7f0e8;
+  --warning: #9a6c15;
+  --warning-soft: #f6ecd6;
+  --danger: #b23a2e;
+  --danger-soft: #f7e4e1;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-xs: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
+  --shadow-md: 0 8px 24px rgba(28, 25, 23, 0.08);
+  --shadow-lg: 0 16px 48px rgba(28, 25, 23, 0.12);
+  --shadow-lift: 0 22px 44px -8px rgba(28, 25, 23, 0.2);
+
+  --dur-instant: 100ms;
+  --dur-fast: 160ms;
+  --dur-base: 240ms;
+  --dur-slow: 360ms;
+  --dur-page: 480ms;
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-quart: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--paper);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  .font-display {
+    font-family: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
+    font-optical-sizing: auto;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-ring);
+    border-radius: var(--radius-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 120ms !important;
+    }
+  }
+}
+
+@keyframes shuttle {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
