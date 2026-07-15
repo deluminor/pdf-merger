@@ -47,7 +47,10 @@ flowchart LR
 
 ```
 pdf-merger/
-├── main.py              # Entry point; invokes cli.app.main()
+├── main.py              # CLI entry point; invokes cli.app.main()
+├── api/
+│   └── main.py          # FastAPI session upload + ordered merge API
+├── web/                 # Vite + React local UI (drag-and-drop reorder)
 ├── cli/
 │   ├── app.py           # PdfMergerApp — wiring, error handling, output
 │   └── parser.py        # argparse setup (folder_path, --output, --recursive, --destination)
@@ -145,3 +148,26 @@ outcome = orchestrator.execute(settings)
 ## License
 
 [MIT](LICENSE) © Erik Kopcha
+
+## Local Web UI
+
+Run the session-based API and Vite UI in separate terminals:
+
+```bash
+pip install -r requirements.txt
+uvicorn api.main:app --reload --port 8000
+
+cd web
+npm i
+npm run dev
+```
+
+## Tests
+
+```bash
+# Python API + merger
+python3 -m pytest -q
+
+# Web unit tests
+cd web && npm test && npm run build
+```
