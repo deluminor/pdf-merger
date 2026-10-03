@@ -137,11 +137,13 @@ settings = MergeSettings(
     output_name="merged",
     destination=None,
 )
+
 orchestrator = MergeOrchestrator(
     scanner=PdfScanner(),
     merger=PdfMergerService(progress_callback=None, error_callback=None),
     messenger=ConsoleMessenger(),
 )
+
 outcome = orchestrator.execute(settings)
 ```
 
