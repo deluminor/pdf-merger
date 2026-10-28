@@ -1,17 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../api/client';
-import { MAX_FILE_BYTES, MAX_FILES, MIN_MERGE_FILES } from '../constants/ui';
-import type { AppState, MergeResult, QueuedFile } from '../types/queue';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "../api/client";
+import { MAX_FILE_BYTES, MAX_FILES, MIN_MERGE_FILES } from "../constants/ui";
+import type { AppState, MergeResult, QueuedFile } from "../types/queue";
 
 const clientId = () => `local-${crypto.randomUUID()}`;
 const isPdf = (file: File) =>
-  file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 
 export function isRetryableFile(file: QueuedFile): boolean {
   return (
-    file.error !== 'Not a PDF' &&
-    file.error !== 'Too large — 50 MB max' &&
-    !file.error?.startsWith('Up to ')
+    file.error !== "Not a PDF" &&
+    file.error !== "Too large — 50 MB max" &&
+    !file.error?.startsWith("Up to ")
   );
 }
 
@@ -34,7 +34,7 @@ export interface PdfSession {
 export function usePdfSession(): PdfSession {
   const [sessionId, setSessionId] = useState<string>();
   const [files, setFiles] = useState<QueuedFile[]>([]);
-  const [state, setState] = useState<AppState>('empty');
+  const [state, setState] = useState<AppState>("empty");
   const [result, setResult] = useState<MergeResult>();
   const [message, setMessage] = useState<string>();
   const filesRef = useRef<QueuedFile[]>([]);
@@ -73,11 +73,11 @@ export function usePdfSession(): PdfSession {
       })
       .catch((error: unknown) => {
         if (mountedRef.current && generation === generationRef.current) {
-          setState('error');
+          setState("error");
           setMessage(
             error instanceof Error
               ? error.message
-              : 'Could not create a session.'
+              : "Could not create a session.",
           );
         }
         return undefined;
@@ -93,15 +93,15 @@ export function usePdfSession(): PdfSession {
 
   const refreshState = useCallback(() => {
     const hasUploading = filesRef.current.some(
-      (file) => file.status === 'uploading'
+      (file) => file.status === "uploading",
     );
 
     setState((current) =>
-      current === 'success' || current === 'merging'
+      current === "success" || current === "merging"
         ? current
         : hasUploading
-          ? 'uploading'
-          : 'ready'
+          ? "uploading"
+          : "ready",
     );
   }, []);
 
@@ -110,7 +110,7 @@ export function usePdfSession(): PdfSession {
       id: string,
       file: File,
       activeSession: string,
-      generation: number
+      generation: number,
     ) => {
       const controller = new AbortController();
       uploadControllersRef.current.get(id)?.abort();
@@ -139,11 +139,11 @@ export function usePdfSession(): PdfSession {
                   name: uploaded.name,
                   size: uploaded.size,
                   pages: uploaded.pages,
-                  status: 'ready',
+                  status: "ready",
                   error: undefined,
                 }
-              : item
-          )
+              : item,
+          ),
         );
         sourceFilesRef.current.delete(id);
       } catch (error) {
@@ -156,12 +156,12 @@ export function usePdfSession(): PdfSession {
         )
           return;
         const reason =
-          error instanceof Error ? error.message : 'Upload failed.';
+          error instanceof Error ? error.message : "Upload failed.";
 
         updateFiles((current) =>
           current.map((item) =>
-            item.id === id ? { ...item, status: 'error', error: reason } : item
-          )
+            item.id === id ? { ...item, status: "error", error: reason } : item,
+          ),
         );
       } finally {
         if (uploadControllersRef.current.get(id) === controller)
@@ -170,7 +170,7 @@ export function usePdfSession(): PdfSession {
           refreshState();
       }
     },
-    [refreshState, updateFiles]
+    [refreshState, updateFiles],
   );
 
   const addFiles = useCallback(
@@ -194,9 +194,9 @@ export function usePdfSession(): PdfSession {
         const id = clientId();
         const validationError =
           isPdf(file) === false
-            ? 'Not a PDF'
+            ? "Not a PDF"
             : file.size > MAX_FILE_BYTES
-              ? 'Too large — 50 MB max'
+              ? "Too large — 50 MB max"
               : undefined;
 
         if (!validationError) sourceFilesRef.current.set(id, file);
@@ -206,29 +206,29 @@ export function usePdfSession(): PdfSession {
           name: file.name,
           size: file.size,
           pages: null,
-          status: validationError ? 'error' : 'uploading',
+          status: validationError ? "error" : "uploading",
           error: validationError,
         };
       });
       updateFiles((current) => [...current, ...queued]);
-      if (queued.some((file) => file.status === 'uploading'))
-        setState('uploading');
+      if (queued.some((file) => file.status === "uploading"))
+        setState("uploading");
 
       await Promise.all(
         queued
-          .filter((file) => file.status === 'uploading')
+          .filter((file) => file.status === "uploading")
           .map((file) =>
             uploadOne(
               file.id,
               sourceFilesRef.current.get(file.id)!,
               activeSession,
-              generation
-            )
-          )
+              generation,
+            ),
+          ),
       );
       refreshState();
     },
-    [createSession, refreshState, updateFiles, uploadOne]
+    [createSession, refreshState, updateFiles, uploadOne],
   );
 
   const retry = useCallback(
@@ -245,15 +245,15 @@ export function usePdfSession(): PdfSession {
       updateFiles((current) =>
         current.map((item) =>
           item.id === id
-            ? { ...item, status: 'uploading', error: undefined }
-            : item
-        )
+            ? { ...item, status: "uploading", error: undefined }
+            : item,
+        ),
       );
 
-      setState('uploading');
+      setState("uploading");
       await uploadOne(id, file, activeSession, generation);
     },
-    [createSession, updateFiles, uploadOne]
+    [createSession, updateFiles, uploadOne],
   );
 
   const remove = useCallback(
@@ -269,7 +269,7 @@ export function usePdfSession(): PdfSession {
       const activeSession = sessionRef.current;
       const generation = generationRef.current;
 
-      if (item?.status !== 'ready' || !activeSession || !item.serverId) return;
+      if (item?.status !== "ready" || !activeSession || !item.serverId) return;
 
       const controller = new AbortController();
       removeControllersRef.current.set(id, controller);
@@ -286,7 +286,7 @@ export function usePdfSession(): PdfSession {
           activeSession === sessionRef.current
         ) {
           setMessage(
-            error instanceof Error ? error.message : 'Could not remove file.'
+            error instanceof Error ? error.message : "Could not remove file.",
           );
         }
       } finally {
@@ -294,7 +294,7 @@ export function usePdfSession(): PdfSession {
           removeControllersRef.current.delete(id);
       }
     },
-    [refreshState, updateFiles]
+    [refreshState, updateFiles],
   );
 
   const reorder = useCallback(
@@ -309,23 +309,23 @@ export function usePdfSession(): PdfSession {
       updateFiles(() => reordered);
       refreshState();
     },
-    [refreshState, updateFiles]
+    [refreshState, updateFiles],
   );
 
   const merge = useCallback(async () => {
     const activeSession = sessionRef.current;
-    const ready = filesRef.current.filter((file) => file.status === 'ready');
+    const ready = filesRef.current.filter((file) => file.status === "ready");
 
     if (!activeSession || ready.length < MIN_MERGE_FILES) return;
 
     const generation = generationRef.current;
-    setState('merging');
+    setState("merging");
     setMessage(undefined);
 
     try {
       const merged = await api.merge(
         activeSession,
-        ready.flatMap((file) => (file.serverId ? [file.serverId] : []))
+        ready.flatMap((file) => (file.serverId ? [file.serverId] : [])),
       );
 
       if (
@@ -337,7 +337,7 @@ export function usePdfSession(): PdfSession {
       }
 
       setResult(merged);
-      setState('success');
+      setState("success");
     } catch (error) {
       if (
         !mountedRef.current ||
@@ -347,8 +347,8 @@ export function usePdfSession(): PdfSession {
         return;
       }
 
-      setState('error');
-      setMessage(error instanceof Error ? error.message : 'Merge failed.');
+      setState("error");
+      setMessage(error instanceof Error ? error.message : "Merge failed.");
     }
   }, []);
 
@@ -369,7 +369,7 @@ export function usePdfSession(): PdfSession {
     setSessionId(undefined);
     setResult(undefined);
     setMessage(undefined);
-    setState('empty');
+    setState("empty");
 
     if (oldSession) await api.cleanup(oldSession).catch(() => undefined);
 
@@ -377,7 +377,11 @@ export function usePdfSession(): PdfSession {
   }, [createSession, updateFiles]);
 
   useEffect(() => {
+    // Strict Mode remounts in dev; reset so a fresh mount can keep its session.
+    mountedRef.current = true;
+
     void createSession();
+
     return () => {
       mountedRef.current = false;
       generationRef.current += 1;
@@ -385,8 +389,11 @@ export function usePdfSession(): PdfSession {
       uploadControllersRef.current.forEach((controller) => controller.abort());
       removeControllersRef.current.forEach((controller) => controller.abort());
 
-      if (sessionRef.current)
-        void api.cleanup(sessionRef.current).catch(() => undefined);
+      const activeSession = sessionRef.current;
+      sessionRef.current = undefined;
+      sessionPromiseRef.current = undefined;
+
+      if (activeSession) void api.cleanup(activeSession).catch(() => undefined);
     };
   }, [createSession]);
 

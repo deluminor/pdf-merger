@@ -1,4 +1,4 @@
-export const MAX_FILES = 50;
+export const MAX_FILES = 20;
 export const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
 export const MIN_MERGE_FILES = 2;
 export const ACCEPTED_MIME = 'application/pdf';

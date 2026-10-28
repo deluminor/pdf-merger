@@ -1,72 +1,84 @@
-# PDF Merger
-
-**CLI tool that merges PDF files from a folder into a single document with progress tracking and flexible output options.**
+<div align="center">
+  <h1>PDF Merger</h1>
+  <p><strong>Merge PDFs from a folder via CLI, or reorder uploads in a local browser UI backed by FastAPI.</strong></p>
+</div>
 
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
-![pypdf](https://img.shields.io/badge/pypdf-4.x-3776AB?logo=adobe-acrobat-reader)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)
+![pypdf](https://img.shields.io/badge/pypdf-4.x-3776AB?logo=adobeacrobatreader&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Overview
 
-PDF Merger is a command-line application that discovers PDF files in a specified folder (optionally recursively), sorts them alphabetically, and merges them into a single output file. It provides progress bars, color-coded console output, and robust error handling for corrupted or inaccessible files.
+**What it does** — Discovers and merges PDF files into one document. Two entry points share the same merge core:
 
-**Use case:** Combine course materials, scanned documents, or any collection of PDFs into one file without manual reordering.
+1. **CLI** — scan a folder (optional recursive), sort alphabetically, write a single PDF.
+2. **Local web UI** — drag-and-drop uploads, reorder with dnd-kit, merge through a session API.
 
-**Status:** Production-ready. Supports pypdf (primary) and PyPDF2 (fallback). Partial merge on per-file errors with explicit user feedback.
+**Why it exists** — Combine course packs, scans, or export dumps without manual Acrobat shuffling.
+
+**Status** — Production-ready for **local** use. In-memory sessions and OS temp storage; not a multi-tenant cloud service.
 
 ## Tech Stack
 
-| Layer      | Technology                    |
-| ---------- | ----------------------------- |
-| Language   | Python 3.8+                   |
-| PDF Engine | pypdf ≥ 4.0 (PyPDF2 fallback) |
-| CLI        | argparse, tqdm                |
-| Formatting | black, isort                  |
+| Layer      | Technology                             |
+| ---------- | -------------------------------------- |
+| Language   | Python 3.8+                            |
+| PDF engine | pypdf ≥ 4.0 (PyPDF2 fallback)          |
+| CLI        | argparse, tqdm                         |
+| HTTP API   | FastAPI, uvicorn, python-multipart     |
+| Web UI     | React 18, Vite 6, TypeScript, Tailwind |
+| UI libs    | @dnd-kit, framer-motion                |
+| Tests      | pytest, httpx, Vitest, Testing Library |
+| Formatting | black, isort                           |
 
 ## Architecture
 
-```
-main.py → cli.app → MergeOrchestrator → PdfScanner / PdfMergerService
-```
+CLI and browser paths both call `PdfMergerService`. The API keeps per-session files under the OS temp directory with a 1-hour TTL. The Vite dev server proxies `/api` to uvicorn on port 8000.
 
-The CLI parses arguments, builds `MergeSettings`, and delegates to `MergeOrchestrator`, which coordinates scanning, output path resolution, and merging. Core services (`PdfScanner`, `PdfMergerService`) are injected for testability and reuse.
+Interactive diagram (open in a browser):
 
-### Execution Flow
+**[docs/diagrams/architecture.html](docs/diagrams/architecture.html)**
 
-```mermaid
-flowchart LR
-    CLI["CLI (argparse)"] --> App["PdfMergerApp"]
-    App --> Orch["MergeOrchestrator"]
-    Orch --> Scan["PdfScanner"]
-    Orch --> Merge["PdfMergerService"]
-    Scan --> Merge
-    Merge --> Outcome["MergeOutcome"]
-```
+> Drop updated diagram HTML at that path to keep the README link working.
+
+### System overview
+
+![PDF Merger system overview](docs/diagrams/architecture.png)
 
 ## Project Structure
 
 ```
 pdf-merger/
-├── main.py              # CLI entry point; invokes cli.app.main()
+├── main.py                 # CLI entry → cli.app.main()
 ├── api/
-│   └── main.py          # FastAPI session upload + ordered merge API
-├── web/                 # Vite + React local UI (drag-and-drop reorder)
+│   ├── main.py             # FastAPI app + CORS wiring
+│   ├── routes.py           # session / upload / merge / download
+│   ├── store.py            # in-memory sessions + TTL cleanup
+│   ├── models.py           # session dataclasses + MergeRequest
+│   ├── uploads.py          # chunked copy + PDF validation
+│   └── constants.py        # limits + CORS origins
+├── web/                    # Vite + React local UI
+│   └── src/
+│       ├── api/            # fetch client (/api)
+│       ├── components/     # Dropzone, queue, merge bar
+│       ├── hooks/          # usePdfSession
+│       └── ...
 ├── cli/
-│   ├── app.py           # PdfMergerApp — wiring, error handling, output
-│   └── parser.py        # argparse setup (folder_path, --output, --recursive, --destination)
+│   ├── app.py              # PdfMergerApp wiring + exit codes
+│   └── parser.py           # argparse
 ├── core/
-│   ├── orchestrator.py  # MergeOrchestrator — folder validation, scan, merge flow
-│   ├── scanner.py       # PdfScanner — discovers PDFs via glob
-│   └── merger.py        # PdfMergerService — combines PDFs, returns MergeOutcome
-├── config/
-│   ├── settings.py      # MergeSettings dataclass
-│   └── constants.py     # PDF_EXTENSION, MAX_PREVIEW_FILES, etc.
-├── utils/
-│   ├── console.py       # ConsoleMessenger — ANSI colors, formatted output
-│   ├── colors.py        # ColorPalette
-│   └── file_utils.py    # sanitize_filename, ensure_unique_output, limit_preview
-├── pyproject.toml       # black, isort config
-└── requirements.txt
+│   ├── orchestrator.py     # folder validate → scan → merge
+│   ├── scanner.py          # PDF discovery
+│   └── merger.py           # PdfMergerService + MergeOutcome
+├── config/                 # MergeSettings, constants
+├── utils/                  # console colors, file helpers
+├── tests/                  # pytest (API + merger)
+├── docs/diagrams/          # architecture.html + architecture.png
+├── requirements.txt
+└── LICENSE
 ```
 
 ## Getting Started
@@ -74,53 +86,85 @@ pdf-merger/
 ### Prerequisites
 
 - **Python** ≥ 3.8
-- **pip** (or uv / poetry)
+- **Node.js** ≥ 18 (web UI only)
+- **pip** and **npm**
 
-### Installation
+### Installation + local web (one command)
 
 ```bash
 git clone https://github.com/ErikKopcha/pdf-merger.git
 cd pdf-merger
-pip install -r requirements.txt
+./dev.sh
 ```
 
-### Running the App
+Creates `venv` if missing, installs Python + `web/` deps, starts API (:8000) and Vite UI (:5173). Open [http://localhost:5173](http://localhost:5173). Ctrl+C stops both.
+
+Manual install only:
 
 ```bash
-# Basic: merge all PDFs in a folder
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cd web && npm install
+```
+
+## Running the App
+
+### CLI
+
+```bash
+source venv/bin/activate   # if you used ./dev.sh
 python3 main.py /path/to/folder
-
-# Custom output name
 python3 main.py /path/to/folder --output "My Merged Document"
-
-# Recursive search in subfolders
 python3 main.py /path/to/folder --recursive
-
-# Custom destination folder
 python3 main.py /path/to/folder --destination ~/Documents --output "Combined"
+```
+
+### Local web UI (manual, two terminals)
+
+```bash
+# Terminal 1 — API
+source venv/bin/activate
+uvicorn api.main:app --reload --port 8000
+
+# Terminal 2 — UI
+cd web
+npm run dev
 ```
 
 ## Available Scripts
 
-| Command                                | Description            |
-| -------------------------------------- | ---------------------- |
-| `python3 main.py <folder_path>`        | Merge PDFs from folder |
-| `python3 main.py <folder_path> --help` | Show CLI help          |
-| `black .`                              | Format code (black)    |
-| `isort .`                              | Sort imports (isort)   |
+| Command                         | Description                           |
+| ------------------------------- | ------------------------------------- |
+| `./dev.sh`                      | Install deps + run API and UI locally |
+| `python3 main.py <folder>`      | Merge PDFs from a folder              |
+| `uvicorn api.main:app --reload` | Start session API (:8000)             |
+| `cd web && npm run dev`         | Vite UI (:5173)                       |
+| `cd web && npm run build`       | Production UI build       |
+| `python3 -m pytest -q`          | Python tests              |
+| `cd web && npm test`            | Vitest suite              |
+| `black .` / `isort .`           | Format Python             |
 
 ## Key Features
 
-- **Smart discovery:** Glob `*.pdf` or `**/*.pdf` (recursive)
-- **Alphabetical order:** Files sorted by name before merge
-- **Unique output:** Timestamp suffix when output file exists
-- **Partial merge:** Skips failed files, reports them explicitly
-- **Progress:** tqdm progress bar or fallback per-file messages
-- **Validation:** Rejects non-directory source, file-as-destination
+- **CLI discovery** — `*.pdf` or `**/*.pdf`, alphabetical order, unique output names
+- **Partial CLI merge** — skips bad files and reports them
+- **Web sessions** — create → upload → reorder → merge → download; cleanup on reset/unmount
+- **Upload guards** — PDF-only, size limits, session caps, incremental copy against forged Content-Length
+- **Shared core** — one `PdfMergerService` for CLI and API
 
-## Integration
+## Deployment
 
-Use as a library without running the CLI:
+Designed for **local / long-lived process** use.
+
+| Target               | Fit                                    |
+| -------------------- | -------------------------------------- |
+| Laptop / VPS Docker  | Yes                                    |
+| Vercel (full stack)  | **No** — in-memory sessions + OS temp  |
+| Vercel (`web/` only) | Possible as static host; API elsewhere |
+
+CORS defaults to `http://localhost:5173`. Override with `PDF_MERGER_CORS_ORIGINS` (comma-separated). Cloud deploy still needs durable storage and sticky sessions or an external session store.
+
+## Library usage
 
 ```python
 from pathlib import Path
@@ -147,29 +191,13 @@ orchestrator = MergeOrchestrator(
 outcome = orchestrator.execute(settings)
 ```
 
+## Testing
+
+```bash
+python3 -m pytest -q
+cd web && npm test && npm run build
+```
+
 ## License
 
 [MIT](LICENSE) © Erik Kopcha
-
-## Local Web UI
-
-Run the session-based API and Vite UI in separate terminals:
-
-```bash
-pip install -r requirements.txt
-uvicorn api.main:app --reload --port 8000
-
-cd web
-npm i
-npm run dev
-```
-
-## Tests
-
-```bash
-# Python API + merger
-python3 -m pytest -q
-
-# Web unit tests
-cd web && npm test && npm run build
-```

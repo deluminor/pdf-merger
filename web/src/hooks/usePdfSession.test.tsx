@@ -146,4 +146,35 @@ describe('usePdfSession', () => {
     });
     expect(result.current.files).toEqual([]);
   });
+
+  it('keeps a session after Strict Mode unmount/remount so uploads can proceed', async () => {
+    mockedApi.createSession
+      .mockResolvedValueOnce('session-1')
+      .mockResolvedValueOnce('session-2');
+    mockedApi.upload.mockResolvedValue([
+      { id: 'server-file', name: 'one.pdf', size: 3, pages: 1 },
+    ]);
+
+    const { result, unmount } = renderHook(() => usePdfSession());
+    await waitFor(() => expect(result.current.sessionId).toBe('session-1'));
+    unmount();
+
+    const remounted = renderHook(() => usePdfSession());
+    await waitFor(() =>
+      expect(remounted.result.current.sessionId).toBe('session-2')
+    );
+
+    await act(async () => {
+      await remounted.result.current.addFiles([pdf('one.pdf')]);
+    });
+
+    await waitFor(() =>
+      expect(remounted.result.current.files[0]?.status).toBe('ready')
+    );
+    expect(mockedApi.upload).toHaveBeenCalledWith(
+      'session-2',
+      [expect.any(File)],
+      expect.any(Object)
+    );
+  });
 });

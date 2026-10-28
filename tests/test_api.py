@@ -11,7 +11,10 @@ from fastapi import HTTPException, UploadFile
 from fastapi.testclient import TestClient
 from pypdf import PdfReader, PdfWriter
 
+import api.constants as api_constants
 import api.main as api
+import api.routes as api_routes
+import api.store as api_store
 from core.merger import MergeOutcome
 
 
@@ -90,13 +93,13 @@ def test_upload_quotas_are_enforced_while_streaming(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     document = pdf_bytes()
-    monkeypatch.setattr(api, "MAX_FILE_SIZE_BYTES", 10)
+    monkeypatch.setattr(api_constants, "MAX_FILE_SIZE_BYTES", 10)
     session_id = new_session(client)
     # The server counts read chunks; it does not trust a multipart size header.
     assert upload(client, session_id, document).status_code == 413
 
-    monkeypatch.setattr(api, "MAX_FILE_SIZE_BYTES", 10_000)
-    monkeypatch.setattr(api, "MAX_FILES_PER_SESSION", 1)
+    monkeypatch.setattr(api_constants, "MAX_FILE_SIZE_BYTES", 10_000)
+    monkeypatch.setattr(api_constants, "MAX_FILES_PER_SESSION", 1)
     assert upload(client, session_id, document).status_code == 201
     assert upload(client, session_id, document, "second.pdf").status_code == 413
 
@@ -105,8 +108,8 @@ def test_session_quota_rejects_second_upload_before_disk_overflow(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     document = pdf_bytes()
-    monkeypatch.setattr(api, "MAX_FILE_SIZE_BYTES", 10_000)
-    monkeypatch.setattr(api, "MAX_SESSION_SIZE_BYTES", len(document) + 1)
+    monkeypatch.setattr(api_constants, "MAX_FILE_SIZE_BYTES", 10_000)
+    monkeypatch.setattr(api_constants, "MAX_SESSION_SIZE_BYTES", len(document) + 1)
     session_id = new_session(client)
     assert upload(client, session_id, document).status_code == 201
     assert upload(client, session_id, document, "second.pdf").status_code == 413
@@ -117,7 +120,7 @@ def test_session_quota_rejects_second_upload_before_disk_overflow(
 def test_expired_sessions_and_startup_orphans_are_removed(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(api, "SESSION_TTL_SECONDS", 1)
+    monkeypatch.setattr(api_constants, "SESSION_TTL_SECONDS", 1)
     session_id = new_session(client)
     with api._sessions_lock:
         session = api._sessions[session_id]
@@ -128,7 +131,7 @@ def test_expired_sessions_and_startup_orphans_are_removed(
 
     orphan = tmp_path / f"{api.TEMP_DIRECTORY_PREFIX}orphan"
     orphan.mkdir()
-    monkeypatch.setattr(api.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(api_store.tempfile, "gettempdir", lambda: str(tmp_path))
     api._sweep_orphaned_session_directories()
     assert not orphan.exists()
 
@@ -146,7 +149,7 @@ def test_merge_does_not_hold_registry_lock(
             Path(output_path).write_bytes(pdf_bytes())
             return MergeOutcome(Path(output_path), 1, 0.001)
 
-    monkeypatch.setattr(api, "PdfMergerService", BlockingMerger)
+    monkeypatch.setattr(api_routes, "PdfMergerService", BlockingMerger)
     session_id = api.create_session()["id"]
     with api._sessions_lock:
         session = api._sessions[session_id]
@@ -177,7 +180,7 @@ def test_delete_waits_for_active_merge_before_removing_directory(
             Path(output_path).write_bytes(pdf_bytes())
             return MergeOutcome(Path(output_path), 1, 0.001)
 
-    monkeypatch.setattr(api, "PdfMergerService", BlockingMerger)
+    monkeypatch.setattr(api_routes, "PdfMergerService", BlockingMerger)
     session_id = api.create_session()["id"]
     with api._sessions_lock:
         session = api._sessions[session_id]
@@ -201,6 +204,62 @@ def test_delete_waits_for_active_merge_before_removing_directory(
     assert not session.directory.exists()
 
 
+def test_merge_returns_skipped_original_names_on_partial_success(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session_id = new_session(client)
+    good = upload(client, session_id, pdf_bytes(2), "good.pdf")
+    bad = upload(client, session_id, pdf_bytes(1), "bad.pdf")
+    assert good.status_code == bad.status_code == 201
+    good_id = good.json()[0]["id"]
+    bad_id = bad.json()[0]["id"]
+
+    real_merge = api_routes.PdfMergerService.merge
+
+    def flaky_merge(self, pdf_files, output_path):
+        paths = list(pdf_files)
+        outcome = real_merge(self, paths[:1], output_path)
+        return MergeOutcome(
+            output_path=outcome.output_path,
+            total_pages=outcome.total_pages,
+            file_size_mb=outcome.file_size_mb,
+            skipped=(paths[1],),
+        )
+
+    monkeypatch.setattr(api_routes.PdfMergerService, "merge", flaky_merge)
+
+    merged = client.post(
+        f"/api/session/{session_id}/merge",
+        json={"order": [good_id, bad_id]},
+    )
+    assert merged.status_code == 200
+    body = merged.json()
+    assert body["pages"] == 2
+    assert body["skipped"] == ["bad.pdf"]
+    assert client.get(body["download_url"]).status_code == 200
+
+
+def test_merge_rejects_when_every_file_is_skipped(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session_id = new_session(client)
+    uploaded = upload(client, session_id, pdf_bytes(1), "only.pdf")
+    file_id = uploaded.json()[0]["id"]
+
+    def empty_merge(self, pdf_files, output_path):
+        paths = list(pdf_files)
+        Path(output_path).write_bytes(b"%PDF-1.4")
+        return MergeOutcome(Path(output_path), 0, 0.0, skipped=tuple(paths))
+
+    monkeypatch.setattr(api_routes.PdfMergerService, "merge", empty_merge)
+
+    merged = client.post(
+        f"/api/session/{session_id}/merge",
+        json={"order": [file_id]},
+    )
+    assert merged.status_code == 422
+
+
 def test_upload_waits_for_merge_then_invalidates_stale_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -214,7 +273,7 @@ def test_upload_waits_for_merge_then_invalidates_stale_result(
             Path(output_path).write_bytes(pdf_bytes())
             return MergeOutcome(Path(output_path), 1, 0.001)
 
-    monkeypatch.setattr(api, "PdfMergerService", BlockingMerger)
+    monkeypatch.setattr(api_routes, "PdfMergerService", BlockingMerger)
     session_id = api.create_session()["id"]
     with api._sessions_lock:
         session = api._sessions[session_id]

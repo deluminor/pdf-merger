@@ -2,6 +2,7 @@
 .sessions/
 tmp_fixtures/
 sessions/
+.archify/
 
 # Local environments and JavaScript builds
 venv/
